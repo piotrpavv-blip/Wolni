@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+  <title>Wolni – rzuć palenie</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#11A65B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wolni">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    :root {
+      --green:       #11A65B;
+      --green-dark:  #0B7A42;
+      --green-light: #EAF8EC;
+      --orange:      #C2570C;
+      --cream:       #FFFDF8;
+      --text:        #1f3527;
+      --text-muted:  #94897a;
+      --text-mid:    #4b5a52;
+      --card:        rgba(255,255,255,0.85);
+      --border:      #E2E6E1;
+      --shadow:      0 6px 16px rgba(120,90,40,0.08);
+      --font:        -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: var(--font);
+      background: var(--green-light);
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* ── SCREENS ─────────────────────────────── */
+    .screen { display: none; position: fixed; inset: 0; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* ── ONBOARDING ──────────────────────────── */
+    #onboard {
+      background: linear-gradient(180deg, #EAF8EC 0%, #FFFDF8 60%);
+      overflow-y: auto;
+      padding: max(env(safe-area-inset-top, 20px), 52px) 22px 40px;
+      display: block;
+    }
+
+    .ob-icon {
+      display: block;
+      text-align: center;
+      font-size: 84px;
+      margin-bottom: 10px;
+      animation: floaty 4.5s ease-in-out infinite;
+    }
+
+    h1.ob-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      text-align: center;
+      margin: 0 0 6px;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+
+    .ob-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+      margin: 0 0 28px;
+      line-height: 1.5;
+    }
+
+    .fl { display: block; font-size: 12.5px; font-weight: 700; color: var(--text-mid); margin: 0 0 7px; }
+
+    .fi {
+      width: 100%; background: #fff; border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 14px 15px; font-size: 16px;
+      color: var(--text); font-family: var(--font); margin-bottom: 18px;
+      outline: none; -webkit-appearance: none; appearance: none;
+    }
+    .fi:focus { border-color: var(--green); }
+
+    .cig-row {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 8px 12px; margin-bottom: 18px;
+    }
+    .cig-btn {
+      width: 40px; height: 40px; border: none; background: #EEF3EE;
+      border-radius: 11px; font-size: 22px; font-weight: 700;
+      color: var(--green); cursor: pointer; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cig-val-wrap { flex: 1; text-align: center; }
+    .cig-num { font-size: 20px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+    .cig-unit { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+
+    .row2 { display: flex; gap: 12px; margin-bottom: 28px; }
+    .row2 > div { flex: 1; min-width: 0; }
+
+    .price-wrap {
+      display: flex; align-items: center; background: #fff;
+      border: 1.5px solid var(--border); border-radius: 14px; padding: 0 14px;
+    }
+    .price-wrap:focus-within { border-color: var(--green); }
+    .price-wrap input {
+      flex: 1; border: none; background: transparent; padding: 14px 0;
+      font-size: 16px; color: var(--text); font-family: var(--font); outline: none; min-width: 0;
+    }
+    .price-unit { font-size: 14px; color: var(--text-muted); font-weight: 700; }
+
+    .btn-go {
+      width: 100%; border: none; background: var(--green); color: #fff;
+      font-size: 17px; font-weight: 800; padding: 16px; border-radius: 16px;
+      cursor: pointer; font-family: var(--font);
+      box-shadow: 0 10px 22px rgba(17,166,91,0.32);
+    }
+    .btn-go:active { transform: scale(0.98); }
+
+    /* ── APP SHELL ───────────────────────────── */
+    #app { background: linear-gradient(180deg, #FFF4E3 0%, #EAF8EC 38%, #FFFDF8 100%); }
+
+    .scroll {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: max(env(safe-area-inset-top, 0px), 24px) 18px 18px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .scroll::-webkit-scrollbar { display: none; }
+
+    /* ── TAB BAR ─────────────────────────────── */
+    .tabbar {
+      flex-shrink: 0; display: flex;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(0,0,0,0.06);
+      padding: 9px 8px max(env(safe-area-inset-bottom,0px),9px);
+    }
+    .tbtn {
+      flex: 1; border: none; background: transparent;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 3px; cursor: pointer; padding: 4px 0; font-family: var(--font);
+    }
+    .tbtn-icon { font-size: 22px; line-height: 1; }
+    .tbtn-label { font-size: 10.5px; font-weight: 700; }
+
+    /* ── TABS ────────────────────────────────── */
+    .tab { display: none; flex-direction: column; gap: 14px; }
+    .tab.active { display: flex; }
+
+    /* ── HOME TAB ────────────────────────────── */
+    .praise-title {
+      font-size: 18px; font-weight: 800; color: var(--orange);
+      text-align: center; letter-spacing: -0.3px;
+    }
+    .praise-body { font-size: 13px; color: #9a7b56; text-align: center; margin-top: 2px; }
+
+    .lung-wrap { display: flex; justify-content: center; margin-top: 2px; }
+    .lung-circle {
+      position: relative; width: 188px; height: 188px; border-radius: 50%;
+      background: radial-gradient(circle at 50% 38%, #FFFFFF, #EAF6EC);
+      box-shadow: 0 18px 40px rgba(120,90,40,0.13), inset 0 0 0 1px rgba(255,255,255,0.7);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lung-emoji { font-size: 80px; line-height: 1; animation: floaty 4.5s ease-in-out infinite; }
+    .lung-badge {
+      position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+      background: var(--green); color: #fff; font-size: 12px; font-weight: 800;
+      padding: 5px 14px; border-radius: 100px;
+      box-shadow: 0 6px 14px rgba(17,166,91,0.4); white-space: nowrap;
+    }
+
+    .days-wrap { text-align: center; margin-top: 8px; }
+    .days-num {
+      font-size: 88px; font-weight: 800; line-height: 0.9; color: var(--text);
+      letter-spacing: -4px; font-variant-numeric: tabular-nums;
+    }
+    .days-lbl {
+      font-size: 13px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #8a9b8d; margin-top: 4px;
+    }
+
+    .stats-row { display: flex; gap: 12px; }
+    .stat-pill {
+      flex: 1; background: var(--card); border-radius: 100px;
+      padding: 11px 16px; display: flex; align-items: center; gap: 10px;
+      box-shadow: var(--shadow);
+    }
+    .stat-icon { font-size: 22px; flex-shrink: 0; }
+    .stat-val { font-size: 19px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .stat-val.or { color: var(--orange); }
+    .stat-sub { font-size: 10.5px; color: var(--text-muted); }
+
+    .cd-card {
+      background: linear-gradient(120deg, var(--green), var(--green-dark));
+      border-radius: 20px; padding: 15px 17px; color: #fff;
+      box-shadow: 0 10px 24px rgba(17,166,91,0.28);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .cd-lbl { font-size: 11.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.85; }
+    .cd-time { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; margin-top: 2px; }
+    .cd-icon { font-size: 30px; flex-shrink: 0; }
+
+    .card { background: var(--card); border-radius: 20px; padding: 13px 14px; }
+    .card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+    .card-title { font-size: 12.5px; font-weight: 800; color: var(--text); }
+    .card-sub { font-size: 11px; font-weight: 700; color: var(--green); }
+
+    .ms-row { display: flex; align-items: center; justify-content: space-between; }
+    .ms-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .ms-icon {
+      width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 19px; transition: opacity 0.3s;
+    }
+    .ms-lbl { font-size: 9px; color: var(--text-muted); line-height: 1; text-align: center; }
+
+    .health-card { background: rgba(255,255,255,0.72); border-radius: 20px; padding: 14px 14px 8px; }
+    .health-item {
+      display: flex; align-items: flex-start; gap: 11px;
+      padding: 9px 0; border-top: 1px solid rgba(0,0,0,0.045);
+    }
+    .health-icon {
+      flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .health-body { flex: 1; min-width: 0; }
+    .health-name { font-size: 12.5px; font-weight: 800; color: var(--text); line-height: 1.2; }
+    .health-desc { font-size: 11px; color: #8a7f70; line-height: 1.35; margin-top: 1px; }
+    .health-status { flex-shrink: 0; font-size: 11.5px; font-weight: 800; padding-top: 2px; white-space: nowrap; }
+
+    /* ── FRIENDS TAB (coming soon) ───────────── */
+    .cs-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; padding: 40px 20px; gap: 16px; min-height: 60vh;
+      justify-content: center;
+    }
+    .cs-emoji { font-size: 64px; }
+    .cs-title { font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+    .cs-text { font-size: 15px; color: var(--text-muted); line-height: 1.6; max-width: 270px; }
+    .cs-badge {
+      background: var(--green-light); border: 1.5px solid #b8dfc8;
+      color: var(--green-dark); font-size: 13px; font-weight: 700;
+      padding: 8px 20px; border-radius: 100px;
+    }
+    .cs-teasers { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 300px; opacity: 0.45; }
+    .cs-card {
+      background: var(--card); border-radius: 14px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow);
+    }
+    .cs-card-icon { font-size: 28px; }
+    .cs-card-title { font-size: 13px; font-weight: 700; color: var(--text); text-align: left; }
+    .cs-card-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; text-align: left; }
+
+    /* ── PROFILE TAB ─────────────────────────── */
+    .pr-head { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -0.6px; }
+    .pr-avatar { display: flex; justify-content: center; font-size: 80px; animation: floaty 4.5s ease-in-out infinite; }
+    .pr-card { background: var(--card); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); }
+    .pr-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .pr-row:last-child { border-bottom: none; }
+    .pr-lbl { font-size: 14px; color: #6b7a72; }
+    .pr-val { font-size: 14px; font-weight: 700; color: var(--text); }
+    .btn-reset {
+      width: 100%; border: 1.5px solid #E2D8CC; background: #fff;
+      color: var(--orange); font-size: 15px; font-weight: 800; padding: 14px;
+      border-radius: 14px; cursor: pointer; font-family: var(--font);
+    }
+    .btn-reset:active { background: #fdf8f5; }
+
+    /* ── CONFETTI ────────────────────────────── */
+    #confetti-layer { position: fixed; inset: 0; z-index: 999; pointer-events: none; overflow: hidden; }
+    .cp { position: absolute; top: -30px; border-radius: 2px; }
+    .ms-banner {
+      position: fixed; top: 110px; left: 50%; transform: translateX(-50%);
+      background: rgba(17,166,91,0.96); color: #fff; padding: 14px 22px;
+      border-radius: 18px; font-size: 17px; font-weight: 800;
+      box-shadow: 0 14px 30px rgba(17,166,91,0.4);
+      white-space: nowrap; z-index: 1000; animation: popIn 0.5s ease both;
+    }
+
+    /* ── ANIMATIONS ─────────────────────────── */
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-7px); }
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-30px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(110vh)  rotate(540deg); opacity: 0.8; }
+    }
+    @keyframes popIn {
+      0%   { transform: translateX(-50%) scale(0.6); opacity: 0; }
+      55%  { transform: translateX(-50%) scale(1.12); }
+      100% { transform: translateX(-50%) scale(1);   opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════ ONBOARDING ═══════════════════ -->
+<div id="onboard" class="screen active">
+  <span class="ob-icon">🫁</span>
+  <h1 class="ob-title">Zacznijmy oddychać<br>pełną piersią</h1>
+  <p class="ob-sub">Kilka danych i Twój licznik wolności rusza.</p>
+
+  <label class="fl">Jak masz na imię?</label>
+  <input id="f-name" class="fi" type="text" placeholder="np. Kuba" autocomplete="given-name">
+
+  <label class="fl">Kiedy rzuciłeś/aś palenie?</label>
+  <input id="f-date" class="fi" type="date">
+
+  <label class="fl">Ile papierosów dziennie paliłeś/aś?</label>
+  <div class="cig-row">
+    <button class="cig-btn" id="cig-minus">−</button>
+    <div class="cig-val-wrap">
+      <span class="cig-num" id="cig-num">20</span>
+      <span class="cig-unit">szt./dzień</span>
+    </div>
+    <button class="cig-btn" id="cig-plus">+</button>
+  </div>
+
+  <div class="row2">
+    <div>
+      <label class="fl">Cena paczki</label>
+      <div class="price-wrap">
+        <input id="f-price" type="number" min="1" step="0.5" value="18">
+        <span class="price-unit">zł</span>
+      </div>
+    </div>
+    <div>
+      <label class="fl">Szt. w paczce</label>
+      <input id="f-pack" class="fi" type="number" min="1" value="20" style="margin-bottom:0">
+    </div>
+  </div>
+
+  <button class="btn-go" id="btn-start">Zaczynam 💪</button>
+  <div style="height:30px"></div>
+</div>
+
+<!-- ═══════════════════ APP ═══════════════════ -->
+<div id="app" class="screen">
+  <div class="scroll">
+
+    <!-- HOME -->
+    <div id="tab-home" class="tab active">
+      <div>
+        <div class="praise-title" id="praise-title">Brawo!</div>
+        <div class="praise-body"  id="praise-body"></div>
+      </div>
+
+      <div class="lung-wrap">
+        <div class="lung-circle">
+          <div class="lung-emoji" id="lung-emoji">🌱</div>
+          <div class="lung-badge" id="lung-badge">Pierwsze listki</div>
+        </div>
+      </div>
+
+      <div class="days-wrap">
+        <div class="days-num" id="days-num">0</div>
+        <div class="days-lbl">dni bez papierosa</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-pill">
+          <div class="stat-icon">🚭</div>
+          <div>
+            <div class="stat-val" id="cigs-saved">0</div>
+            <div class="stat-sub">mniej szt.</div>
+          </div>
+        </div>
+        <div class="stat-pill">
+          <div class="stat-icon">🪙</div>
+          <div>
+            <div class="stat-val or" id="money-saved">0 zł</div>
+            <div class="stat-sub">zaoszczędzone</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cd-card">
+        <div>
+          <div class="cd-lbl" id="cd-lbl">Do kamienia milowego</div>
+          <div class="cd-time" id="cd-time">—</div>
+        </div>
+        <div class="cd-icon">⏳</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Twój ogród osiągnięć</div>
+          <div class="card-sub" id="ms-next"></div>
+        </div>
+        <div class="ms-row" id="ms-row"></div>
+      </div>
+
+      <div class="health-card">
+        <div class="card-head">
+          <div class="card-title">Co zyskuje Twoje ciało 💚</div>
+          <div class="card-sub" id="health-done"></div>
+        </div>
+        <div id="health-list"></div>
+      </div>
+    </div>
+
+    <!-- ZNAJOMI -->
+    <div id="tab-friends" class="tab">
+      <div class="cs-wrap">
+        <div class="cs-emoji">🤝</div>
+        <div class="cs-title">Razem łatwiej</div>
+        <p class="cs-text">Znajomi, wspólna skarbonka i grupowe wyzwania pojawią się w kolejnej wersji. Najpierw przetestuj sam — i powiedz nam, co usprawnić!</p>
+        <div class="cs-badge">🚀 Wkrótce dostępne</div>
+        <div class="cs-teasers">
+          <div class="cs-card">
+            <div class="cs-card-icon">👥</div>
+            <div>
+              <div class="cs-card-title">Dodawaj znajomych</div>
+              <div class="cs-card-sub">Obserwuj ich postępy</div>
+            </div>
+          </div>
+          <div class="cs-card">
+            <div class="cs-card-icon">🪙</div>
+            <div>
+              <div class="cs-card-title">Wspólna skarbonka</div>
+              <div class="cs-card-sub">Suma oszczędności całej ekipy</div>
+            </div>
+          </div>
+          <div class="cs-card">
+            <div class="cs-card-icon">🏔️</div>
+            <div>
+              <div class="cs-card-title">Grupowe wyzwania</div>
+              <div class="cs-card-sub">Weekend w górach? Wakacje!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFIL -->
+    <div id="tab-profile" class="tab">
+      <div class="pr-head" id="pr-head">Cześć! 👋</div>
+      <div class="pr-avatar" id="pr-avatar">🌱</div>
+      <div class="pr-card">
+        <div class="pr-row"><span class="pr-lbl">Data rzucenia</span><span class="pr-val" id="pr-date">—</span></div>
+        <div class="pr-row"><span class="pr-lbl">Papierosy dziennie</span><span class="pr-val" id="pr-cigs">—</span></div>
+        <div class="pr-row"><span class="pr-lbl">Cena paczki</span><span class="pr-val" id="pr-price">—</span></div>
+        <div class="pr-row"><span class="pr-lbl">Łącznie dni wolności</span><span class="pr-val" id="pr-days">—</span></div>
+      </div>
+      <button class="btn-reset" id="btn-reset">Zmień dane / zacznij od nowa</button>
+    </div>
+
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tabbar">
+    <button class="tbtn" id="tbtn-home" onclick="goTab('home')">
+      <div class="tbtn-icon" id="ti-home">🏠</div>
+      <div class="tbtn-label" id="tl-home" style="color:var(--green)">Dom</div>
+    </button>
+    <button class="tbtn" id="tbtn-friends" onclick="goTab('friends')">
+      <div class="tbtn-icon" id="ti-friends" style="filter:grayscale(1) opacity(.55)">👥</div>
+      <div class="tbtn-label" id="tl-friends" style="color:#b3ac9f">Znajomi</div>
+    </button>
+    <button class="tbtn" id="tbtn-profile" onclick="goTab('profile')">
+      <div class="tbtn-icon" id="ti-profile" style="filter:grayscale(1) opacity(.55)">👤</div>
+      <div class="tbtn-label" id="tl-profile" style="color:#b3ac9f">Profil</div>
+    </button>
+  </div>
+</div>
+
+<!-- CONFETTI LAYER -->
+<div id="confetti-layer"></div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────
+const MS = [
+  { d: 1,   e: '🌱', s: '1 dz.',   l: '1 dzień'     },
+  { d: 3,   e: '🌿', s: '3 dni',   l: '3 dni'       },
+  { d: 7,   e: '🍀', s: 'tydz.',   l: 'tydzień'     },
+  { d: 14,  e: '🌳', s: '2 tyg.',  l: '2 tygodnie'  },
+  { d: 30,  e: '🌲', s: 'mies.',   l: 'miesiąc'     },
+  { d: 90,  e: '🏆', s: '3 mies.', l: '3 miesiące'  },
+  { d: 365, e: '👑', s: 'rok',     l: 'rok'         },
+];
+
+const HEALTH = [
+  { h: 1,      e: '❤️',  t: '1 godzina',       d: 'Tętno i ciśnienie wracają do normy. Krążenie się poprawia.' },
+  { h: 8,      e: '🩸',  t: '8 godzin',        d: 'Tlen we krwi rośnie, a tlenek węgla spada o połowę.' },
+  { h: 24,     e: '💨',  t: '24 godziny',      d: 'Płuca oczyszczają się ze śluzu. Spada ryzyko zawału serca.' },
+  { h: 48,     e: '👅',  t: '48 godzin',       d: 'Nikotyna całkowicie usunięta. Wracają smak i węch.' },
+  { h: 72,     e: '⚡',  t: '72 godziny',      d: 'Oskrzela się rozluźniają — oddychasz łatwiej, masz więcej energii.' },
+  { h: 336,    e: '🏃',  t: '2 tyg.–3 mies.',  d: 'Wyraźnie lepsze krążenie i wydolność fizyczna.' },
+  { h: 720,    e: '🌬️', t: '1–9 miesięcy',    d: 'Ustępują kaszel i duszności. Rzęski w płucach regenerują się.' },
+  { h: 8760,   e: '💪',  t: '1 rok',           d: 'Ryzyko choroby niedokrwiennej serca spada o połowę.' },
+  { h: 43800,  e: '🧠',  t: '5 lat',           d: 'Ryzyko udaru mózgu jak u osoby niepalącej.' },
+  { h: 87600,  e: '🎗️', t: '10 lat',          d: 'Ryzyko zgonu z raka płuc o połowę niższe niż u palacza.' },
+  { h: 131400, e: '🏅',  t: '15 lat',          d: 'Ryzyko chorób serca jak u osoby, która nigdy nie paliła.' },
+];
+
+const STAGE_NAMES  = ['Posiane ziarno 🌱', 'Pierwsze listki', 'Rośnie w siłę', 'Zielono Ci!', 'Potężne drzewo! 🎉'];
+const STAGE_EMOJIS = ['💨', '🌱', '🌿', '🌳', '🎋'];
+const CHEERS       = ['Trzymasz to mocno!', 'Każda godzina się liczy.', 'Twoje płuca dziękują.',
+                      'Jesteś silniejszy niż nałóg.', 'Świetna robota — tak dalej!',
+                      'Oddychasz pełną piersią.', 'Konsekwencja czyni cuda.'];
+const CONF_COLORS  = ['#11A65B','#F59E0B','#34F08A','#C2570C','#5BC0EB','#ff7a93'];
+
+// ─── STATE ───────────────────────────────────────────────
+const state = {
+  form: { name:'', date: defaultDate(), cigs: 20, price: 18, pack: 20 },
+  tab: 'home',
+  prevDays: -1,
+  domReady: false,
+};
+
+function defaultDate() {
+  const d = new Date(); d.setDate(d.getDate() - 8);
+  return d.toISOString().slice(0, 10);
+}
+
+// ─── STORAGE ─────────────────────────────────────────────
+function save() {
+  try { localStorage.setItem('wolni_v1', JSON.stringify(state.form)); } catch(e) {}
+}
+function load() {
+  try {
+    const r = localStorage.getItem('wolni_v1');
+    if (r) { state.form = JSON.parse(r); return true; }
+  } catch(e) {}
+  return false;
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────
+function showOnboard() {
+  document.getElementById('onboard').classList.add('active');
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('f-name').value  = state.form.name  || '';
+  document.getElementById('f-date').value  = state.form.date  || defaultDate();
+  document.getElementById('f-price').value = state.form.price || 18;
+  document.getElementById('f-pack').value  = state.form.pack  || 20;
+  document.getElementById('cig-num').textContent = state.form.cigs || 20;
+}
+
+function showApp() {
+  document.getElementById('onboard').classList.remove('active');
+  document.getElementById('app').classList.add('active');
+  buildStaticDOM();
+  startTimer();
+  renderHome();
+}
+
+function goTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+
+  ['home','friends','profile'].forEach(t => {
+    const on = t === tab;
+    document.getElementById('ti-' + t).style.filter = on ? 'none' : 'grayscale(1) opacity(.55)';
+    document.getElementById('tl-' + t).style.color  = on ? 'var(--green)' : '#b3ac9f';
+  });
+
+  if (tab === 'profile') renderProfile();
+}
+
+// ─── TIMER ───────────────────────────────────────────────
+let _timer = null;
+function startTimer() {
+  if (_timer) clearInterval(_timer);
+  _timer = setInterval(tick, 1000);
+}
+function tick() {
+  const { days } = calc();
+  if (state.prevDays >= 0 && days !== state.prevDays && MS.some(m => m.d === days)) fireConfetti();
+  state.prevDays = days;
+  if (state.tab === 'home') renderHome();
+}
+
+// ─── CALCULATIONS ────────────────────────────────────────
+function calc() {
+  const now   = Date.now();
+  const quits = new Date(state.form.date + 'T00:00:00').getTime();
+  const elMs  = Math.max(0, now - quits);
+  const dayF  = elMs / 86400000;
+  const days  = Math.floor(dayF);
+  const hours = elMs / 3600000;
+  const cigs  = Math.floor(dayF * (Number(state.form.cigs) || 0));
+  const perC  = (Number(state.form.price) || 0) / (Number(state.form.pack) || 20);
+  const money = Math.floor(cigs * perC);
+  return { now, elMs, days, hours, cigs, money };
+}
+
+function stage(d) { return d>=30?4 : d>=7?3 : d>=3?2 : d>=1?1 : 0; }
+function fmt(n)   { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0'); }
+function p2(x)    { return String(x).padStart(2, '0'); }
+
+function fmtRem(rh) {
+  if (rh < 1)  return `za ${Math.max(1, Math.ceil(rh*60))} min`;
+  if (rh < 24) return `za ${Math.ceil(rh)} godz.`;
+  const rd = rh/24;
+  if (rd < 60) return `za ${Math.ceil(rd)} dni`;
+  const rm = rd/30;
+  if (rm < 24) return `za ${Math.round(rm)} mies.`;
+  return `za ${Math.round(rd/365)} lat`;
+}
+
+// ─── BUILD STATIC DOM (once) ──────────────────────────────
+function buildStaticDOM() {
+  if (state.domReady) return;
+  state.domReady = true;
+
+  // Milestones
+  document.getElementById('ms-row').innerHTML = MS.map(m =>
+    `<div class="ms-item">
+       <div class="ms-icon" id="ms-${m.d}">${m.e}</div>
+       <div class="ms-lbl">${m.s}</div>
+     </div>`
+  ).join('');
+
+  // Health list
+  document.getElementById('health-list').innerHTML = HEALTH.map((h, i) =>
+    `<div class="health-item" id="hi-${i}" style="opacity:.45">
+       <div class="health-icon" id="hic-${i}" style="background:#F0F1EE;border:1.5px solid #e2e4df">${h.e}</div>
+       <div class="health-body">
+         <div class="health-name">${h.t}</div>
+         <div class="health-desc">${h.d}</div>
+       </div>
+       <div class="health-status" id="hs-${i}" style="color:#b8b2a8"></div>
+     </div>`
+  ).join('');
+}
+
+// ─── RENDER HOME ─────────────────────────────────────────
+function renderHome() {
+  const { elMs, days, hours, cigs, money } = calc();
+  const st = stage(days);
+
+  // Praise
+  const title = days === 0 ? 'Dziś pierwszy dzień bez papierosa! 🚀'
+              : days === 1 ? 'Brawo! 1 dzień bez papierosa 🎉'
+              :              `Brawo! Już ${days} dni bez papierosa 🎉`;
+  el('praise-title').textContent = title;
+  el('praise-body').textContent  = CHEERS[days % CHEERS.length];
+
+  // Lung
+  el('lung-emoji').textContent = STAGE_EMOJIS[st];
+  el('lung-badge').textContent = STAGE_NAMES[st];
+
+  // Stats
+  el('days-num').textContent   = days;
+  el('cigs-saved').textContent = fmt(cigs);
+  el('money-saved').textContent = fmt(money) + '\u00a0zł';
+
+  // Countdown to next milestone
+  const ni = MS.findIndex(m => days < m.d);
+  if (ni !== -1) {
+    const rem   = Math.max(0, MS[ni].d * 86400000 - elMs);
+    const rs    = Math.floor(rem / 1000);
+    const rd    = Math.floor(rs / 86400);
+    const rh    = Math.floor((rs % 86400) / 3600);
+    const rm    = Math.floor((rs % 3600) / 60);
+    const rsec  = rs % 60;
+    el('cd-lbl').textContent  = `Do kamienia: ${MS[ni].l}`;
+    el('cd-time').textContent = `${rd}d ${p2(rh)}:${p2(rm)}:${p2(rsec)}`;
+  } else {
+    el('cd-lbl').textContent  = 'Wszystkie kamienie zdobyte!';
+    el('cd-time').textContent = '👑';
+  }
+
+  // Milestone next label
+  el('ms-next').textContent = ni !== -1
+    ? `następny za ${MS[ni].d - days} ${MS[ni].d - days === 1 ? 'dzień' : 'dni'}`
+    : 'Wszystko zdobyte! 👑';
+
+  // Milestone icons
+  MS.forEach(m => {
+    const done = days >= m.d;
+    const ic = document.getElementById('ms-' + m.d);
+    if (!ic) return;
+    ic.style.background = done ? '#D7F4E1' : '#F0F1EE';
+    ic.style.border     = `2px solid ${done ? '#1fb968' : '#e2e4df'}`;
+    ic.style.opacity    = done ? 1 : 0.4;
+  });
+
+  // Health list
+  const nhIdx = HEALTH.findIndex(h => hours < h.h);
+  const done  = HEALTH.filter(h => hours >= h.h).length;
+  el('health-done').textContent = `${done} / ${HEALTH.length}`;
+
+  HEALTH.forEach((h, i) => {
+    const isDone  = hours >= h.h;
+    const isNext  = i === nhIdx;
+    const visible = isDone || isNext;
+    const item = document.getElementById('hi-' + i);
+    const icon = document.getElementById('hic-' + i);
+    const stat = document.getElementById('hs-' + i);
+    if (!item) return;
+    item.style.opacity     = visible ? 1 : 0.45;
+    icon.style.background  = isDone ? '#D7F4E1' : isNext ? '#FFE9D2' : '#F0F1EE';
+    icon.style.border      = `1.5px solid ${isDone ? '#1fb968' : isNext ? '#F59E0B' : '#e2e4df'}`;
+    stat.style.color       = isDone ? '#1fb968' : isNext ? '#C2570C' : '#b8b2a8';
+    stat.textContent       = isDone ? '✓ zdobyte' : isNext ? fmtRem(h.h - hours) : '';
+  });
+}
+
+// ─── RENDER PROFILE ──────────────────────────────────────
+function renderProfile() {
+  const { days } = calc();
+  const st   = stage(days);
+  const name = state.form.name || 'przyjacielu';
+  el('pr-head').textContent  = `Cześć, ${name}! 👋`;
+  el('pr-avatar').textContent = STAGE_EMOJIS[st];
+  el('pr-date').textContent  = state.form.date  || '—';
+  el('pr-cigs').textContent  = `${state.form.cigs} szt.`;
+  el('pr-price').textContent = `${state.form.price} zł / ${state.form.pack} szt.`;
+  el('pr-days').textContent  = `${days} ${days === 1 ? 'dzień' : 'dni'}`;
+}
+
+// ─── CONFETTI ────────────────────────────────────────────
+function fireConfetti() {
+  const layer = document.getElementById('confetti-layer');
+  layer.innerHTML = '<div class="ms-banner">🎉 Nowy kamień milowy!</div>';
+  for (let i = 0; i < 70; i++) {
+    const cp = document.createElement('div');
+    cp.className = 'cp';
+    cp.style.cssText = `left:${Math.round(Math.random()*100)}%;`
+      + `width:${6+Math.round(Math.random()*6)}px;`
+      + `height:${9+Math.round(Math.random()*8)}px;`
+      + `background:${CONF_COLORS[i%CONF_COLORS.length]};`
+      + `transform:rotate(${Math.round(Math.random()*360)}deg);`
+      + `animation:confettiFall ${(1.6+Math.random()*1.4).toFixed(2)}s linear `
+      + `${(Math.random()*0.5).toFixed(2)}s both;`;
+    layer.appendChild(cp);
+  }
+  setTimeout(() => { layer.innerHTML = ''; }, 3500);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+
+// ─── EVENTS ──────────────────────────────────────────────
+el('f-name').addEventListener('input',  e => { state.form.name  = e.target.value; });
+el('f-date').addEventListener('input',  e => { state.form.date  = e.target.value; });
+el('f-price').addEventListener('input', e => { state.form.price = e.target.value; });
+el('f-pack').addEventListener('input',  e => { state.form.pack  = e.target.value; });
+
+el('cig-minus').addEventListener('click', () => {
+  state.form.cigs = Math.max(1, (Number(state.form.cigs)||1) - 1);
+  el('cig-num').textContent = state.form.cigs;
+});
+el('cig-plus').addEventListener('click', () => {
+  state.form.cigs = (Number(state.form.cigs)||0) + 1;
+  el('cig-num').textContent = state.form.cigs;
+});
+
+el('btn-start').addEventListener('click', () => {
+  state.form.name  = el('f-name').value.trim();
+  state.form.date  = el('f-date').value || defaultDate();
+  state.form.price = el('f-price').value;
+  state.form.pack  = el('f-pack').value;
+  save(); showApp(); fireConfetti();
+});
+
+el('btn-reset').addEventListener('click', () => {
+  if (!confirm('Zresetować dane i zacząć od nowa?')) return;
+  try { localStorage.removeItem('wolni_v1'); } catch(e) {}
+  state.form     = { name:'', date: defaultDate(), cigs:20, price:18, pack:20 };
+  state.prevDays = -1;
+  state.domReady = false;
+  if (_timer) { clearInterval(_timer); _timer = null; }
+  showOnboard();
+});
+
+// ─── SERVICE WORKER ──────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ─── INIT ────────────────────────────────────────────────
+if (load()) {
+  showApp();
+} else {
+  showOnboard();
+  // set default date in input
+  el('f-date').value = defaultDate();
+}
+</script>
+</body>
+</html>
